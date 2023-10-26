@@ -26,7 +26,10 @@ dependencies = [
     "m2stitch",
     "ome_types",
     "zarr",
-    "ome_zarr"
+    "ome_zarr",
+    "aicsimageio",
+    "aicspylibczi>=3.1.1",
+    "fsspec>=2022.8.0"
 ]
 
 [project.urls]
