@@ -10,7 +10,7 @@ import tifffile
 from .parser_MD import parse_files_zmb, get_well_image_FCZYX
 from .stitching import fuse_mean
 
-def load_for_viewing(
+def load_for_viewing_MD(
     dir_import,
     tile_subset=None,
     MIP=False,
