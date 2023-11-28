@@ -151,6 +151,7 @@ def stitch_and_export_MD(
     channels_used_for_stitching=[0,],
     flatfield_directory=None,
     fuse_fun=fuse_mean_gradient,
+    ncc_threshold=0.1,
 ):
     print('----------------------------------------------')
     print('Processing:')
