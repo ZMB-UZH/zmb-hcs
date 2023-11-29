@@ -217,7 +217,7 @@ def stitch_and_export_MD(
     start_time = time.time()
     rows, cols = construct_grid(positions, data_da.shape[-2:])
     result_df, _ = m2stitch.stitch_images(
-        mip, rows, cols, row_col_transpose=False, ncc_threshold=0.1
+        mip, rows, cols, row_col_transpose=False, ncc_threshold=ncc_threshold
     )
     print(f"took {(time.time() - start_time):.1f}s")
 
