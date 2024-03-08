@@ -11,7 +11,7 @@ authors = [
 description = "A set of functions to process MD-ImageXpress data."
 license = "BSD-3-Clause"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -29,8 +29,39 @@ dependencies = [
     "ome_zarr",
     "aicsimageio",
     "aicspylibczi>=3.1.1",
-    "fsspec>=2022.8.0"
+    "fsspec>=2022.8.0",
+    "faim-hcs @ git+https://github.com/fmi-faim/faim-hcs.git@v0.2.4",
 ]
 
 [project.urls]
 "Homepage" = "not_available_yet"
+
+# https://peps.python.org/pep-0621/#dependencies-optional-dependencies
+# "extras" (e.g. for `pip install .[test]`)
+[project.optional-dependencies]
+# add dependencies used for testing here
+test = ["pytest", "pytest-cov"]
+# add anything else you like to have in your dev environment here
+dev = [
+    "mypy",
+    "ruff",
+]
+
+[project.urls]
+"Homepage" = "not_available_yet"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+
+# https://mypy.readthedocs.io/en/stable/config_file.html
+[tool.mypy]
+files = "src/**/"
+strict = false
+#disallow_any_generics = false
+#disallow_subclassing_any = false
+show_error_codes = true
+pretty = true
