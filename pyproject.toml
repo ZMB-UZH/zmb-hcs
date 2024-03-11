@@ -1,6 +1,15 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+# read more about configuring hatch at:
+# https://hatch.pypa.io/latest/config/build/
+
+# https://hatch.pypa.io/latest/config/metadata/
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project]
 name = "zmb-hcs"
@@ -11,7 +20,7 @@ authors = [
 description = "A set of functions to process MD-ImageXpress data."
 license = "BSD-3-Clause"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -30,7 +39,7 @@ dependencies = [
     "aicsimageio",
     "aicspylibczi>=3.1.1",
     "fsspec>=2022.8.0",
-    "faim-hcs @ git+https://github.com/fmi-faim/faim-hcs.git@v0.2.4",
+    #"faim-hcs @ git+https://github.com/fmi-faim/faim-hcs.git@v0.2.4",
 ]
 
 [project.urls]
@@ -46,9 +55,6 @@ dev = [
     "mypy",
     "ruff",
 ]
-
-[project.urls]
-"Homepage" = "not_available_yet"
 
 [tool.ruff]
 line-length = 88
