@@ -36,9 +36,12 @@ dependencies = [
     "ome_types",
     "zarr",
     "ome_zarr",
+    "cellpose<3",
     "aicsimageio",
+    "aicssegmentation",
     "aicspylibczi>=3.1.1",
     "fsspec>=2022.8.0",
+    "fractal-tasks-core==0.14.2",
     #"faim-hcs @ git+https://github.com/fmi-faim/faim-hcs.git@v0.2.4",
 ]
 
