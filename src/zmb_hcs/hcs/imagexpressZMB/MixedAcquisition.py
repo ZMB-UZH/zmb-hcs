@@ -87,7 +87,7 @@ class MixedAcquisition(ImageXpressPlateAcquisition):
 
     def _compute_z_spacing(self, files: pd.DataFrame) -> Optional[float]:
         assert "z" in files.columns, "No z column in files DataFrame."
-        channel_with_stack = np.sort(files[files["z"] == "2"]["channel"].unique())[0]
+        channel_with_stack = np.sort(files[files.z!='1']["channel"].unique())[0]
         subset = files[files["channel"] == channel_with_stack]
         subset = subset[subset["well"] == np.sort(subset["well"].unique())[0]]
         subset = subset[subset["field"] == np.sort(subset["field"].unique())[0]]

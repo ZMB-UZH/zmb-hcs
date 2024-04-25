@@ -56,6 +56,7 @@ class StackAcquisition(ImageXpressPlateAcquisition):
         )
 
     def _parse_files(self) -> pd.DataFrame:
+        # TODO: get it to work with queries like "z in ['1','3','5']"
         files = super()._parse_files()
         # single-planes and projections are unnecessarily duplicated
         # -> remove duplicates from files & remove all projections
@@ -87,7 +88,7 @@ class StackAcquisition(ImageXpressPlateAcquisition):
 
     def _compute_z_spacing(self, files: pd.DataFrame) -> Optional[float]:
         assert "z" in files.columns, "No z column in files DataFrame."
-        channel_with_stack = np.sort(files[files["z"] == "2"]["channel"].unique())[0]
+        channel_with_stack = np.sort(files[files.z!='1']["channel"].unique())[0]
         subset = files[files["channel"] == channel_with_stack]
         subset = subset[subset["well"] == np.sort(subset["well"].unique())[0]]
         subset = subset[subset["field"] == np.sort(subset["field"].unique())[0]]
