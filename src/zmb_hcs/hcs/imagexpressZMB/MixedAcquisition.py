@@ -60,7 +60,7 @@ class MixedAcquisition(ImageXpressPlateAcquisition):
         # single-planes and projections are unnecessarily duplicated
         # -> remove duplicates from files
         for c in files.channel.unique():
-            file = files[(files.channel == c) & (files.z == "2")].iloc[0]
+            file = files[(files.channel == c) & (files.z!='0') & (files.z!='1')].iloc[0]
             metadata = load_metaseries_tiff_metadata(file.path)
             # projections have no "Z Step" attribute
             # single-planes have always metadata["Z Step"] == 1, for each duplicate
