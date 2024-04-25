@@ -32,7 +32,8 @@ class SinglePlaneAcquisition_as3D(ImageXpressPlateAcquisition):
 
     def _parse_files(self) -> pd.DataFrame:
         files = super()._parse_files()
-        files = files.query("z=='1'")
+        if len(files.z.unique()) != 1:
+            raise RuntimeError("More than one z-plane found. One can filter the files using a query, e.g. query=\"z=='0'\"")
         self._z_spacing = self._compute_z_spacing(files)
         return files
 
