@@ -4,7 +4,7 @@ from typing import Optional, Union
 
 import pandas as pd
 
-from faim_hcs.hcs.acquisition import TileAlignmentOptions
+from faim_ipa.hcs.acquisition import TileAlignmentOptions
 from zmb_hcs.hcs.imagexpressZMB import ImageXpressPlateAcquisition
 
 

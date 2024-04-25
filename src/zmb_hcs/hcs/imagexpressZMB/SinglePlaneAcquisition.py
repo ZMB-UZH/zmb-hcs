@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import Optional, Union
 
-from faim_hcs.hcs.acquisition import TileAlignmentOptions
+from faim_ipa.hcs.acquisition import TileAlignmentOptions
 from zmb_hcs.hcs.imagexpressZMB import ImageXpressPlateAcquisition
 
 

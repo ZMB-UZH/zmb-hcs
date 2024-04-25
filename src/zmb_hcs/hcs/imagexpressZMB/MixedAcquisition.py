@@ -6,9 +6,9 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 
-from faim_hcs.hcs.acquisition import TileAlignmentOptions
+from faim_ipa.hcs.acquisition import TileAlignmentOptions
 from zmb_hcs.hcs.imagexpressZMB import ImageXpressPlateAcquisition
-from faim_hcs.io.MetaSeriesTiff import load_metaseries_tiff_metadata
+from faim_ipa.io.MetaSeriesTiff import load_metaseries_tiff_metadata
 
 
 class MixedAcquisition(ImageXpressPlateAcquisition):
@@ -89,8 +89,8 @@ class MixedAcquisition(ImageXpressPlateAcquisition):
         assert "z" in files.columns, "No z column in files DataFrame."
         channel_with_stack = np.sort(files[files["z"] == "2"]["channel"].unique())[0]
         subset = files[files["channel"] == channel_with_stack]
-        subset = subset[subset["well"] == subset["well"].unique()[0]]
-        subset = subset[subset["field"] == subset["field"].unique()[0]]
+        subset = subset[subset["well"] == np.sort(subset["well"].unique())[0]]
+        subset = subset[subset["field"] == np.sort(subset["field"].unique())[0]]
 
         plane_positions = []
 
