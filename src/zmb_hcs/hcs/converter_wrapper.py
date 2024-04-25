@@ -5,10 +5,10 @@ from dask.distributed import Client
 
 from zmb_hcs.hcs.imagexpressZMB import StackAcquisition
 from zmb_hcs.hcs import roi_tables
-from faim_hcs.hcs.acquisition import TileAlignmentOptions
-from faim_hcs.hcs.converter import ConvertToNGFFPlate, NGFFPlate
-from faim_hcs.hcs.plate import PlateLayout
-from faim_hcs.stitching import stitching_utils
+from faim_ipa.hcs.acquisition import TileAlignmentOptions
+from faim_ipa.hcs.converter import ConvertToNGFFPlate, NGFFPlate
+from faim_ipa.hcs.plate import PlateLayout
+from faim_ipa.stitching import stitching_utils
 from fractal_tasks_core.tables import write_table
 
 
