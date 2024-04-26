@@ -3,7 +3,7 @@ from pathlib import Path
 
 from dask.distributed import Client
 
-from zmb_hcs.hcs.imagexpressZMB import StackAcquisition
+from zmb_hcs.hcs.faim_ipa.imagexpressZMB import StackAcquisition
 from zmb_hcs.hcs import roi_tables
 from faim_ipa.hcs.acquisition import TileAlignmentOptions
 from faim_ipa.hcs.converter import ConvertToNGFFPlate, NGFFPlate

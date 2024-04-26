@@ -12,7 +12,7 @@ from faim_ipa.hcs.acquisition import (
     TileAlignmentOptions,
     WellAcquisition,
 )
-from zmb_hcs.hcs.imagexpressZMB.ImageXpressWellAcquisition import (
+from zmb_hcs.hcs.faim_ipa.imagexpressZMB.ImageXpressWellAcquisition import (
     ImageXpressWellAcquisition,
 )
 from faim_ipa.io.ChannelMetadata import ChannelMetadata

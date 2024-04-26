@@ -31,7 +31,7 @@ from zarr.errors import ContainsArrayError
 from fractal_tasks_core.ngff import load_NgffImageMeta
 from fractal_tasks_core.zarr_utils import OverwriteNotAllowedError
 
-from zmb_hcs.hcs.pyramids import build_pyramid
+from zmb_hcs.hcs.fractal.pyramids import build_pyramid
 
 logger = logging.getLogger(__name__)
 

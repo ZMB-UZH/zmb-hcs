@@ -37,7 +37,7 @@ from fractal_tasks_core.roi import check_valid_ROI_indices
 from fractal_tasks_core.roi import (
     convert_ROI_table_to_indices,
 )
-from zmb_hcs.hcs.pyramids import build_pyramid
+from zmb_hcs.hcs.fractal.pyramids import build_pyramid
 
 logger = logging.getLogger(__name__)
 

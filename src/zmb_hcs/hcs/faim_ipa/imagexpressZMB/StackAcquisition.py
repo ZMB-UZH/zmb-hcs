@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from faim_ipa.hcs.acquisition import TileAlignmentOptions
-from zmb_hcs.hcs.imagexpressZMB import ImageXpressPlateAcquisition
+from zmb_hcs.hcs.faim_ipa.imagexpressZMB import ImageXpressPlateAcquisition
 from faim_ipa.io.MetaSeriesTiff import load_metaseries_tiff_metadata
 
 

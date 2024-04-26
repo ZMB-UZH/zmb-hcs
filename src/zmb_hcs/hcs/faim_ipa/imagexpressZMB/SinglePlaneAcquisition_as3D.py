@@ -5,7 +5,7 @@ from typing import Optional, Union
 import pandas as pd
 
 from faim_ipa.hcs.acquisition import TileAlignmentOptions
-from zmb_hcs.hcs.imagexpressZMB import ImageXpressPlateAcquisition
+from zmb_hcs.hcs.faim_ipa.imagexpressZMB import ImageXpressPlateAcquisition
 
 
 class SinglePlaneAcquisition_as3D(ImageXpressPlateAcquisition):
