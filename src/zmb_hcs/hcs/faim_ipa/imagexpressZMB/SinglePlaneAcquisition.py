@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from faim_ipa.hcs.acquisition import TileAlignmentOptions
-from zmb_hcs.hcs.imagexpressZMB import ImageXpressPlateAcquisition
+from zmb_hcs.hcs.faim_ipa.imagexpressZMB import ImageXpressPlateAcquisition
 
 
 class SinglePlaneAcquisition(ImageXpressPlateAcquisition):
