@@ -129,7 +129,7 @@ def separate_watershed(img, mask, sigma):
     # anisotropy in xy and z
     img_processed = gaussian(img, sigma=sigma)
     coords = peak_local_max(
-        img_processed, labels=mask, min_distance=sigma, exclude_border=True
+        img_processed, labels=mask, min_distance=sigma, exclude_border=False
     )
     maximas = np.zeros(img.shape, dtype=bool)
     maximas[tuple(coords.T)] = True
