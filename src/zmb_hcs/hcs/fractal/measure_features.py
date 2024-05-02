@@ -321,8 +321,6 @@ def measure_features(
 
     measurements_delayed = []
     for i_ROI, indices in enumerate(list_indices):
-        # initialize features for this ROI
-        roi_feature_list = []
         # Define region
         s_z, e_z, s_y, e_y, s_x, e_x = indices[:]
         region = (
@@ -410,13 +408,13 @@ def measure_features(
         )
         measurements_delayed.append(measurement_delayed)
 
-    logger.info(f"Now calculating one ROI for meta")
+    logger.info("Now calculating one ROI for meta")
 
     # get structure of df by calculating first FOV
     # TODO: do this more efficiently
     meta = measurements_delayed[0].compute()
 
-    logger.info(f"Now calculating features for all ROIs")
+    logger.info("Now calculating features for all ROIs")
 
     df_measurements = dd.from_delayed(measurements_delayed, meta=meta).compute()
 
@@ -440,7 +438,7 @@ def measure_features(
         obs=obs,
     )
 
-    logger.info(f"Now writing feature-table")
+    logger.info("Now writing feature-table")
 
     # Write to zarr group
     image_group = zarr.group(zarrurl)
@@ -456,4 +454,4 @@ def measure_features(
         },
     )
 
-    logger.info(f"Done.")
+    logger.info("Done.")
