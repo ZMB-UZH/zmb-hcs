@@ -17,24 +17,23 @@ import logging
 import time
 import warnings
 from pathlib import Path
-from typing import Any
-from typing import Optional
-from typing import Sequence
+from typing import Any, Optional
 
 import anndata as ad
 import dask.array as da
-#from dask.distributed import Client, wait
+
+# from dask.distributed import Client, wait
 import numpy as np
 import zarr
-#from basicpy import BaSiC
-#from pydantic.decorator import validate_arguments
 
-from fractal_tasks_core.channels import get_omero_channel_list
-from fractal_tasks_core.channels import OmeroChannel
+# from basicpy import BaSiC
+# from pydantic.decorator import validate_arguments
+from fractal_tasks_core.channels import OmeroChannel, get_omero_channel_list
 from fractal_tasks_core.ngff import load_NgffImageMeta
-#from fractal_tasks_core.pyramids import build_pyramid
-from fractal_tasks_core.roi import check_valid_ROI_indices
+
+# from fractal_tasks_core.pyramids import build_pyramid
 from fractal_tasks_core.roi import (
+    check_valid_ROI_indices,
     convert_ROI_table_to_indices,
 )
 from zmb_hcs.hcs.fractal.pyramids import build_pyramid
@@ -76,10 +75,14 @@ def correct(
 
     #  Apply the normalized correction matrix (requires a float array)
     # img_stack = img_stack.astype(np.float64)
-    new_img_stack = (img_stack - darkfield) / flatfield [None, None, :, :]
+    new_img_stack = (img_stack - darkfield) / flatfield[None, None, :, :]
 
     # Background subtraction
-    new_img_stack = np.where(new_img_stack > baseline, new_img_stack - baseline, 0,)
+    new_img_stack = np.where(
+        new_img_stack > baseline,
+        new_img_stack - baseline,
+        0,
+    )
 
     # Handle edge case: corrected image may have values beyond the limit of
     # the encoding, e.g. beyond 65535 for 16bit images. This clips values
@@ -97,59 +100,37 @@ def correct(
     return new_img_stack.astype(dtype)
 
 
-#@validate_arguments
+# @validate_arguments
 def apply_basicpy_illumination_model(
     *,
-    # Standard arguments
-    input_paths: Sequence[str],
-    output_path: str,
-    component: str,
-    metadata: dict[str, Any],
+    # Fractal parameters
+    zarr_url: str,
     # Task-specific arguments
     illumination_profiles_folder: str,
     overwrite_input: bool = True,
-    new_component: Optional[str] = None,
+    new_well_sub_group: Optional[str] = None,
 ) -> dict[str, Any]:
-
     """
     Applies illumination correction to the images in the OME-Zarr.
 
     Args:
-        input_paths: List of input paths where the image data is stored as
-            OME-Zarrs. Should point to the parent folder containing one or many
-            OME-Zarr files, not the actual OME-Zarr file. Example:
-            `["/some/path/"]`. This task only supports a single input path.
-            (standard argument for Fractal tasks, managed by Fractal server).
-        output_path: Path were the output of this task is stored. Examples:
-            `"/some/path/"` => puts the new OME-Zarr file in the same folder as
-            the input OME-Zarr file; `"/some/new_path"` => puts the new
-            OME-Zarr file into a new folder at `/some/new_path`.
-            (standard argument for Fractal tasks, managed by Fractal server).
-        component: Path to the OME-Zarr image in the OME-Zarr plate that is
-            processed. Example: `"some_plate.zarr/B/03/0"`.
-            (standard argument for Fractal tasks, managed by Fractal server).
-        metadata: This parameter is not used by this task.
+        zarr_url: Path or url to the individual OME-Zarr image to be processed.
             (standard argument for Fractal tasks, managed by Fractal server).
         illumination_profiles_folder: Path of folder of illumination profiles.
         overwrite_input:
             If `True`, the results of this task will overwrite the input image
             data. In the current version, `overwrite_input=False` is not
             implemented.
-        new_component: Not implemented yet. This is not implemented well in
-            Fractal server at the moment, it's unclear how a user would specify
-            fitting new components. If the results shall not overwrite the
-            input data and the output path is the same as the input path, a new
-            component needs to be provided.
-            Example: `myplate_new_name.zarr/B/03/0/`.
+        new_well_sub_group: Name of new well-subgroup. If this is set,
+            overwrite_input needs to be False.
+            Example: `0_illumination_corrected`.
     """
 
     # Preliminary checks
-    if len(input_paths) > 1:
-        raise NotImplementedError
-    if (overwrite_input and new_component is not None) or (
-        new_component is None and not overwrite_input
+    if (overwrite_input and new_well_sub_group is not None) or (
+        new_well_sub_group is None and not overwrite_input
     ):
-        raise ValueError(f"{overwrite_input=}, but {new_component=}")
+        raise ValueError(f"{overwrite_input=}, but {new_well_sub_group=}")
 
     if not overwrite_input:
         msg = (
@@ -160,16 +141,18 @@ def apply_basicpy_illumination_model(
         raise NotImplementedError(msg)
 
     # Define old/new zarrurls
-    plate, well = component.split(".zarr/")
-    in_path = Path(input_paths[0])
-    zarrurl_old = (in_path / component).as_posix()
+    _, well = zarr_url.split(".zarr/")
+    zarrurl_old = zarr_url
     if overwrite_input:
         zarrurl_new = zarrurl_old
     else:
-        new_plate, new_well = new_component.split(".zarr/")
-        if new_well != well:
-            raise ValueError(f"{well=}, {new_well=}")
-        zarrurl_new = (Path(output_path) / new_component).as_posix()
+        old_well_sub_group = zarrurl_old.split("/")[-1]
+        if old_well_sub_group == new_well_sub_group:
+            raise ValueError(
+                f"{old_well_sub_group=}, which is the same as"
+                f" {new_well_sub_group=}, but {overwrite_input=}."
+            )
+        zarrurl_new = (Path(zarr_url).parent / new_well_sub_group).as_posix()
 
     t_start = time.perf_counter()
     logger.info("Start illumination_correction")
@@ -184,14 +167,10 @@ def apply_basicpy_illumination_model(
     full_res_pxl_sizes_zyx = ngff_image_meta.get_pixel_sizes_zyx(level=0)
     logger.info(f"NGFF image has {num_levels=}")
     logger.info(f"NGFF image has {coarsening_xy=}")
-    logger.info(
-        f"NGFF image has full-res pixel sizes {full_res_pxl_sizes_zyx}"
-    )
+    logger.info(f"NGFF image has full-res pixel sizes {full_res_pxl_sizes_zyx}")
 
     # Read channels from .zattrs
-    channels: list[OmeroChannel] = get_omero_channel_list(
-        image_zarr_path=zarrurl_old
-    )
+    channels: list[OmeroChannel] = get_omero_channel_list(image_zarr_path=zarrurl_old)
     num_channels = len(channels)
 
     # Read FOV ROIs
@@ -215,11 +194,7 @@ def apply_basicpy_illumination_model(
             ref_img_size = img_size
         else:
             if img_size != ref_img_size:
-                raise ValueError(
-                    "ERROR: inconsistent image sizes in list_indices"
-                )
-    img_size_y, img_size_x = img_size[:]
-
+                raise ValueError("ERROR: inconsistent image sizes in list_indices")
 
     # Lazily load highest-res level from original zarr array
     data_czyx = da.from_zarr(f"{zarrurl_old}/0")
@@ -243,16 +218,14 @@ def apply_basicpy_illumination_model(
     num_ROIs = len(list_indices)
     for i_c, channel in enumerate(channels):
         # load illumination model
-        logger.info(
-            f"loading illumination model for channel {channel.label}"
-        )
+        logger.info(f"loading illumination model for channel {channel.label}")
         # basic = BaSiC()
         # basic = basic.load_model(
         #     illumination_profiles_folder + f"/{channel.label}")
         folder_path = Path(illumination_profiles_folder) / f"{channel.label}"
-        flatfield = np.load(folder_path / 'flatfield.npy')
-        darkfield = np.load(folder_path / 'darkfield.npy')
-        baseline = np.load(folder_path / 'baseline.npy')
+        flatfield = np.load(folder_path / "flatfield.npy")
+        darkfield = np.load(folder_path / "darkfield.npy")
+        baseline = np.load(folder_path / "baseline.npy")
 
         for i_ROI, indices in enumerate(list_indices):
             # Define region
@@ -273,18 +246,8 @@ def apply_basicpy_illumination_model(
                 img_stack=data_czyx[region].compute(),
                 flatfield=flatfield,
                 darkfield=darkfield,
-                baseline=int(np.median(baseline))
+                baseline=int(np.median(baseline)),
             )
-            # Write to disk
-            # wait(
-            #     client.persist(
-            #         da.array(corrected_fov).to_zarr(
-            #             url=new_zarr,
-            #             region=region,
-            #             compute=False,
-            #         )
-            #     )
-            # )
             da.array(corrected_fov).to_zarr(
                 url=new_zarr,
                 region=region,

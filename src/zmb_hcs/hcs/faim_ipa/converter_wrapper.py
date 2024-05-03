@@ -140,7 +140,7 @@ def convert_MD_plane_as3D(
         alignment: TileAlignmentOptions = TileAlignmentOptions.GRID,
         client: Client = None,
         chunks: Union[tuple[int, int], tuple[int, int, int]] = (2048, 2048),
-) -> dict:
+) -> None:
     """
     Create OME-Zarr plate from MD Image Xpress files. Only converts one plane
     or projection. (One needs to ensure only one plane is processed with e.g.
@@ -169,7 +169,7 @@ def convert_MD_plane_as3D(
         chunks: Chunk size in (Z)YX.
 
     Returns:
-        Metadata dictionary
+        None
     """
 
     print("Parsing files...")
@@ -207,20 +207,11 @@ def convert_MD_plane_as3D(
     )
 
     # write ROI tables
-    plate_name = zarr_name + ".zarr"
-    well_paths = []
-    image_paths = []
-
     well_acquisitions = plate_acquisition.get_well_acquisitions(selection=None)
     ROI_tables = roi_tables.create_ROI_tables(plate_acquistion=plate_acquisition)
 
     for well_acquisition in well_acquisitions:
         well_rc = well_acquisition.get_row_col()
-        well_path = f"{plate_name}/{well_rc[0]}/{well_rc[1]}"
-        well_paths.append(well_path)
-
-        image_path = f"{well_path}/{well_sub_group}"
-        image_paths.append(image_path)
 
         # Write the tables
         image_group = plate[well_rc[0]][well_rc[1]][well_sub_group]
@@ -234,11 +225,3 @@ def convert_MD_plane_as3D(
                 table_type="roi_table",
                 table_attrs=None,
             )
-
-        metadata = {
-            "plate": [plate_name],
-            "well": well_paths,
-            "image": image_paths,
-        }
-
-    return metadata

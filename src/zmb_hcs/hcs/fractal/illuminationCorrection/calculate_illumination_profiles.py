@@ -55,7 +55,6 @@ def calculate_illumination_profiles(
     overwrite: bool = False,
     random_seed: int = None,
     basic_smoothness: float = 1,
-    client=None,
 ) -> dict:
 
     """

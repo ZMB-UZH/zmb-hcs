@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 from typing import Optional, Sequence
 
 import anndata as ad
@@ -111,7 +110,8 @@ def spot_mask_2D(
             upper_bound=normalize.upper_bound,
         )[0]
 
-    x = gaussian(x, sigma=gaussian_smoothing_sigma, preserve_range=True)
+    if gaussian_smoothing_sigma:
+        x = gaussian(x, sigma=gaussian_smoothing_sigma, preserve_range=True)
     mask = gaussian_laplace_threshold(x, s2_param)
     mask = hole_filling(mask, 0, fill_max_size, fill_2d)
     return mask
@@ -183,18 +183,15 @@ def segment_ROI(
 
 def segment_particles(
     *,
-    # Standard arguments
-    input_paths: Sequence[str],
-    output_path: str,
-    component: str,
-    # Task-specific arguments
+    # Fractal parameters
+    zarr_url: str,
+    # Core parameters
     level: int = 0,
     channel: ChannelInputModel,
     input_ROI_table: str = "FOV_ROI_table",
     output_ROI_table: Optional[str] = None,
     output_label_name: Optional[str] = None,
-    use_masks: bool = True,
-    relabeling: bool = True,
+    # Segmentation parameters
     normalize: CellposeCustomNormalizer = CellposeCustomNormalizer(),
     gaussian_smoothing_sigma: float = None,
     s2_param: Sequence[Sequence[float]] = [
@@ -203,21 +200,15 @@ def segment_particles(
     fill_2d: bool = True,
     fill_max_size: float = 1000,
     # Overwrite option
+    use_masks: bool = True,
+    relabeling: bool = True,
     overwrite: bool = True,
 ) -> None:
     """
     Segment particles
 
     Args:
-        input_paths: List of input paths where the image data is stored as
-            OME-Zarrs. Should point to the parent folder containing one or many
-            OME-Zarr files, not the actual OME-Zarr file. Example:
-            `["/some/path/"]`. This task only supports a single input path.
-            (standard argument for Fractal tasks, managed by Fractal server).
-        output_path: This parameter is not used by this task.
-            (standard argument for Fractal tasks, managed by Fractal server).
-        component: Path to the OME-Zarr image in the OME-Zarr plate that is
-            processed. Example: `"some_plate.zarr/B/03/0"`.
+        zarr_url: Path or url to the individual OME-Zarr image to be processed.
             (standard argument for Fractal tasks, managed by Fractal server).
         level: Pyramid level of the image to be segmented. Choose `0` to
             process at full resolution.
@@ -232,12 +223,6 @@ def segment_particles(
             which will contain the bounding boxes of the newly segmented
             labels. ROI tables should have `ROI` in their name.
         output_label_name: Name of the output label image (e.g. `"organoids"`).
-        use_masks: If `True`, try to use masked loading and fall back to
-            `use_masks=False` if the ROI table is not suitable. Masked
-            loading is relevant when only a subset of the bounding box should
-            actually be processed (e.g. running within `organoid_ROI_table`).
-        relabeling: If `True`, apply relabeling so that label values are
-            unique for all objects in the well.
         normalize: By default, data is normalized so 0.0=1st percentile and
             1.0=99th percentile of image intensities in each channel.
             This automatic normalization can lead to issues when the image to
@@ -255,19 +240,18 @@ def segment_particles(
             (sigma in pixels @ level0)
         fill_2d: If True, holes will be filled
         fill_max_size: maximum hole-size to be filled (in pixels @ level0)
+        use_masks: If `True`, try to use masked loading and fall back to
+            `use_masks=False` if the ROI table is not suitable. Masked
+            loading is relevant when only a subset of the bounding box should
+            actually be processed (e.g. running within `organoid_ROI_table`).
+        relabeling: If `True`, apply relabeling so that label values are
+            unique for all objects in the well.
         overwrite: If `True`, overwrite the task output.
 
     """
 
-    # Set input path
-    if len(input_paths) > 1:
-        raise NotImplementedError
-    in_path = Path(input_paths[0])
-    zarrurl = (in_path.resolve() / component).as_posix()
-    logger.info(f"{zarrurl=}")
-
     # Read attributes from NGFF metadata
-    ngff_image_meta = load_NgffImageMeta(zarrurl)
+    ngff_image_meta = load_NgffImageMeta(zarr_url)
     num_levels = ngff_image_meta.num_levels
     coarsening_xy = ngff_image_meta.coarsening_xy
     full_res_pxl_sizes_zyx = ngff_image_meta.get_pixel_sizes_zyx(level=0)
@@ -279,12 +263,10 @@ def segment_particles(
         f"NGFF image has level-{level} pixel sizes " f"{actual_res_pxl_sizes_zyx}"
     )
 
-    plate, well = component.split(".zarr/")
-
     # Find channel index
     try:
         tmp_channel: OmeroChannel = get_channel_from_image_zarr(
-            image_zarr_path=zarrurl,
+            image_zarr_path=zarr_url,
             wavelength_id=channel.wavelength_id,
             label=channel.label,
         )
@@ -304,11 +286,11 @@ def segment_particles(
             output_label_name = f"label_{ind_channel}"
 
     # Load ZYX data
-    data_zyx = da.from_zarr(f"{zarrurl}/{level}")[ind_channel]
+    data_zyx = da.from_zarr(f"{zarr_url}/{level}")[ind_channel]
     logger.info(f"{data_zyx.shape=}")
 
     # Read ROI table
-    ROI_table_path = f"{zarrurl}/tables/{input_ROI_table}"
+    ROI_table_path = f"{zarr_url}/tables/{input_ROI_table}"
     ROI_table = ad.read_zarr(ROI_table_path)
 
     # Perform some checks on the ROI table
@@ -372,7 +354,7 @@ def segment_particles(
         ],
     }
 
-    image_group = zarr.group(zarrurl)
+    image_group = zarr.group(zarr_url)
     label_group = prepare_label_group(
         image_group,
         output_label_name,
@@ -382,8 +364,8 @@ def segment_particles(
     )
 
     logger.info(f"Helper function `prepare_label_group` returned {label_group=}")
-    logger.info(f"Output label path: {zarrurl}/labels/{output_label_name}/0")
-    store = zarr.storage.FSStore(f"{zarrurl}/labels/{output_label_name}/0")
+    logger.info(f"Output label path: {zarr_url}/labels/{output_label_name}/0")
+    store = zarr.storage.FSStore(f"{zarr_url}/labels/{output_label_name}/0")
     label_dtype = np.uint32
 
     # Ensure that all output shapes & chunks are 3D (for 2D data: (1, y, x))
@@ -447,7 +429,7 @@ def segment_particles(
         if use_masks:
             preprocessing_kwargs = dict(
                 region=region,
-                current_label_path=f"{zarrurl}/labels/{output_label_name}/0",
+                current_label_path=f"{zarr_url}/labels/{output_label_name}/0",
                 ROI_table_path=ROI_table_path,
                 ROI_positional_index=i_ROI,
             )
@@ -503,12 +485,12 @@ def segment_particles(
             compute=True,
         )
 
-    logger.info(f"End segmentation task for {zarrurl}, " "now building pyramids.")
+    logger.info(f"End segmentation task for {zarr_url}, " "now building pyramids.")
 
     # Starting from on-disk highest-resolution data, build and write to disk a
     # pyramid of coarser levels
     build_pyramid(
-        zarrurl=f"{zarrurl}/labels/{output_label_name}",
+        zarrurl=f"{zarr_url}/labels/{output_label_name}",
         overwrite=overwrite,
         num_levels=num_levels,
         coarsening_xy=coarsening_xy,
@@ -537,10 +519,10 @@ def segment_particles(
         bbox_table.obs = labels
 
         # Write to zarr group
-        image_group = zarr.group(f"{in_path}/{component}")
+        image_group = zarr.group(zarr_url)
         logger.info(
             "Now writing bounding-box ROI table to "
-            f"{in_path}/{component}/tables/{output_ROI_table}"
+            f"{zarr_url}/tables/{output_ROI_table}"
         )
         table_attrs = {
             "type": "masking_roi_table",

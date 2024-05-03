@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Optional, Sequence
 import logging
 import anndata as ad
 import dask
@@ -239,11 +239,8 @@ def measure_features_ROI(
 
 def measure_features(
     *,
-    # Default arguments for fractal tasks:
-    input_paths: Sequence[str],
-    output_path: str,
-    component: str,
-    metadata: Dict[str, Any],
+    # Fractal parameters
+    zarr_url: str,
     # Task-specific arguments:
     output_table_name: str,
     label_image_name: str,
@@ -264,17 +261,11 @@ def measure_features(
     TODO: Currently, the label image, annotation_images and intensity_images
     all need to have the same resolution. -> Think about how to fix this.
 
+    TODO: Currently only works for well-plates, since it also writes well_name.
+
     Args:
-        input_paths: Path to the parent folder of the NGFF image.
-            This task only supports a single input path.
+        zarr_url: Path or url to the individual OME-Zarr image to be processed.
             (standard argument for Fractal tasks, managed by Fractal server).
-        output_path: This argument is not used in this task.
-            (standard argument for Fractal tasks, managed by Fractal server).
-        component: Path of the NGFF image, relative to `input_paths[0]`.
-            (standard argument for Fractal tasks, managed by Fractal server).
-        metadata: This argument is not used in this task.
-            (standard argument for Fractal tasks, managed by Fractal server).
-                output_table_name: Name of the feature table.
         label_image_name: Name of the label image that contains the seeds.
             Needs to exist in OME-Zarr file.
         annotation_image_names: List of the label images that should be used
@@ -293,20 +284,19 @@ def measure_features(
         overwrite: If True, overwrite existing feature table.
     """
 
-    plate, well = component.split(".zarr/")
-    well_name = component.split("/")[1] + component.split("/")[2]
-    in_path = Path(input_paths[0])
-    zarrurl = (in_path / component).as_posix()
+    plate_name = Path(zarr_url.split(".zarr/")[0]).name
+    component = zarr_url.split(".zarr/")[1]
+    well_name = component.split("/")[0] + component.split("/")[1]
 
     logger.info(f"Now processing well {well_name}")
 
     # get some meta data
-    ngff_image_meta = load_NgffImageMeta(in_path.joinpath(component))
+    ngff_image_meta = load_NgffImageMeta(zarr_url)
     full_res_pxl_sizes_zyx = ngff_image_meta.get_pixel_sizes_zyx(level=level)
     coarsening_xy = ngff_image_meta.coarsening_xy
 
     # load ROI table
-    ROI_table = ad.read_zarr(in_path.joinpath(component, "tables", "FOV_ROI_table"))
+    ROI_table = ad.read_zarr(Path(zarr_url).joinpath("tables", "FOV_ROI_table"))
 
     # Create list of indices for 3D FOVs spanning the entire Z direction
     list_indices = convert_ROI_table_to_indices(
@@ -331,7 +321,7 @@ def measure_features(
         )
 
         # load label image
-        label_image_da = da.from_zarr(f"{zarrurl}/labels/{label_image_name}/{level}")[
+        label_image_da = da.from_zarr(f"{zarr_url}/labels/{label_image_name}/{level}")[
             region[1:]
         ]
 
@@ -340,14 +330,14 @@ def measure_features(
         if annotation_image_names:
             for annotation_image_name in annotation_image_names:
                 annotation_images_da.append(
-                    da.from_zarr(f"{zarrurl}/labels/{annotation_image_name}/{level}")[
+                    da.from_zarr(f"{zarr_url}/labels/{annotation_image_name}/{level}")[
                         region[1:]
                     ]
                 )
 
         # load intensity images
         # get all channels in the acquisition and find the ones of interest
-        channels = get_omero_channel_list(image_zarr_path=zarrurl)
+        channels = get_omero_channel_list(image_zarr_path=zarr_url)
         if channels_to_include:
             channel_labels_to_include = [c.label for c in channels_to_include]
             channel_wavelength_ids_to_include = [
@@ -374,24 +364,14 @@ def measure_features(
         intensity_images_da = []
         for channel in channels:
             tmp_channel: OmeroChannel = get_channel_from_image_zarr(
-                image_zarr_path=zarrurl,
+                image_zarr_path=zarr_url,
                 wavelength_id=channel.wavelength_id,
                 label=channel.label,
             )
             ind_channel = tmp_channel.index
-            data_zyx = da.from_zarr(f"{zarrurl}/{level}")[region][ind_channel]
+            data_zyx = da.from_zarr(f"{zarr_url}/{level}")[region][ind_channel]
             intensity_images_da.append(data_zyx)
 
-        # measurements = measure_features_ROI(
-        #     labels = label_image_da.compute(),
-        #     annotations_list = [annotation_image_da.compute() for annotation_image_da in annotation_images_da],
-        #     intensities_list = [intensity_image_da.compute() for intensity_image_da in intensity_images_da],
-        #     ann_prefix_list=annotation_image_names,
-        #     int_prefix_list=[channel.wavelength_id for channel in channels],
-        #     structure_props=structure_props,
-        #     intensity_props=intensity_props,
-        #     optional_columns={'plate':plate, 'well':well_name, 'FOV':i_ROI}
-        # )
         measurement_delayed = dask.delayed(measure_features_ROI)(
             labels=label_image_da,
             annotations_list=annotation_images_da,
@@ -401,7 +381,7 @@ def measure_features(
             structure_props=structure_props,
             intensity_props=intensity_props,
             optional_columns={
-                "plate": plate,
+                "plate": plate_name,
                 "well": well_name,
                 "ROI": ROI_table.obs.index[i_ROI],
             },
@@ -441,7 +421,7 @@ def measure_features(
     logger.info("Now writing feature-table")
 
     # Write to zarr group
-    image_group = zarr.group(zarrurl)
+    image_group = zarr.group(zarr_url)
     write_table(
         image_group,
         output_table_name,
