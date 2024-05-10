@@ -1,6 +1,7 @@
+import logging
 from pathlib import Path
 from typing import Any, Optional, Sequence
-import logging
+
 import anndata as ad
 import dask
 import dask.array as da
@@ -19,10 +20,12 @@ from fractal_tasks_core.roi import (
     convert_ROI_table_to_indices,
 )
 from fractal_tasks_core.tables import write_table
+from scipy.ndimage import distance_transform_edt
 from skimage.measure import regionprops, regionprops_table
 from skimage.measure._regionprops import COL_DTYPES
 
 logger = logging.getLogger(__name__)
+
 
 def most_frequent_value(mask, img):
     masked_img = img[mask].astype(int)
@@ -127,10 +130,13 @@ def measure_features_ROI(
     labels,
     annotations_list,
     intensities_list,
+    shortest_distance_list,
     ann_prefix_list=None,
     int_prefix_list=None,
+    dist_prefix_list=None,
     structure_props=None,
     intensity_props=None,
+    pxl_sizes=None,
     optional_columns: dict[str:Any] = {},
 ):
     """
@@ -140,10 +146,13 @@ def measure_features_ROI(
         labels: Label image to be measured
         annotations_list: list of label images, which are used to annotate labels
         intensities_list: list of intensity images to measure
+        shortest_distance_list: list of label images, for which the shortest distance is calculated
         ann_prefix_list: prefix to use for annotations (default: ann0, ann1, ann2,...)
         int_prefix_list: prefix to use for intensity measurements (default: c0, c1, c2, ...)
+        dist_prefix_list: prefix to use for shortest_distance measurements (default: dist0, dist1, dist2, ...)
         structure_props: list of structure properties to measure
         intensity_props: list of intensity properties to measure
+        pxl_sizes: list of pixel sizes, must have same length as passed image dimensions
         optional_columns: list of any additional columns and their entries (e.g. {'well':'C01'})
     Returns:
         Pandas dataframe
@@ -190,6 +199,7 @@ def measure_features_ROI(
                 ]
                 + structure_props
             ),
+            spacing=pxl_sizes,
         )
     )
     df_struct.set_index("label", inplace=True)
@@ -211,6 +221,7 @@ def measure_features_ROI(
                     ]
                     + intensity_props
                 ),
+                spacing=pxl_sizes,
             )
         )
         df_int = df_int.rename(
@@ -219,6 +230,34 @@ def measure_features_ROI(
         df_int.set_index("label", inplace=True)
         df_int_list.append(df_int)
 
+    # calculated shortest distances
+    if dist_prefix_list is None:
+        dist_prefix_list = [f"dist{i}" for i in range(len(shortest_distance_list))]
+    df_dist_list = []
+    for dist_label, dist_prefix in zip(shortest_distance_list, dist_prefix_list):
+        dist_transform = distance_transform_edt(
+            np.logical_not(dist_label), sampling=pxl_sizes
+        )
+        df_dist = pd.DataFrame(
+            regionprops_table(
+                labels,
+                dist_transform,
+                properties=(
+                    [
+                        "label",
+                        "intensity_min",
+                    ]
+                ),
+                spacing=pxl_sizes,
+            )
+        )
+        df_dist = df_dist.rename(
+            columns={
+                "intensity_min": f"shortest_distance_to_{dist_prefix}",
+            }
+        )
+        df_dist.set_index("label", inplace=True)
+        df_dist_list.append(df_dist)
     # combine all
     df = pd.concat(
         [
@@ -228,7 +267,8 @@ def measure_features_ROI(
         + [
             df_struct,
         ]
-        + df_int_list,
+        + df_int_list
+        + df_dist_list,
         axis=1,
     )
     # add additional columns:
@@ -243,8 +283,9 @@ def measure_features(
     zarr_url: str,
     # Task-specific arguments:
     output_table_name: str,
-    label_image_name: str,
-    annotation_image_names: Optional[Sequence[str]] = None,
+    label_name: str,
+    annotation_label_names: Optional[Sequence[str]] = None,
+    shortest_distance_label_names: Optional[Sequence[str]] = None,
     channels_to_include: Optional[Sequence[ChannelInputModel]] = None,
     channels_to_exclude: Optional[Sequence[ChannelInputModel]] = None,
     structure_props: Optional[Sequence[str]] = None,
@@ -266,10 +307,15 @@ def measure_features(
     Args:
         zarr_url: Path or url to the individual OME-Zarr image to be processed.
             (standard argument for Fractal tasks, managed by Fractal server).
-        label_image_name: Name of the label image that contains the seeds.
+
+        output_table_name: Name of the output table.
+        label_name: Name of the label that contains the seeds.
             Needs to exist in OME-Zarr file.
-        annotation_image_names: List of the label images that should be used
+        annotation_label_names: List of label names that should be used
             to annotate the labels. Need to exist in OME-Zarr file.
+        shortest_distance_label_names: List of label names that should be used
+            to calculate the shortest distance to the labels.
+            Need to exist in OME-Zarr file.
         channels_to_include: List of channels to include for intensity
             and texture measurements. Use the channel label to indicate
             single channels. If None, all channels are included.
@@ -288,12 +334,16 @@ def measure_features(
     component = zarr_url.split(".zarr/")[1]
     well_name = component.split("/")[0] + component.split("/")[1]
 
-    logger.info(f"Now processing well {well_name}")
+    logger.info(f"Calculating {output_table_name} for well {well_name}")
 
     # get some meta data
     ngff_image_meta = load_NgffImageMeta(zarr_url)
     full_res_pxl_sizes_zyx = ngff_image_meta.get_pixel_sizes_zyx(level=level)
     coarsening_xy = ngff_image_meta.coarsening_xy
+    # calculate level pixel sizes:
+    level_pxl_sizes_zyx = [
+        full_res_pxl_sizes_zyx[0],
+    ] + [dn * (coarsening_xy**level) for dn in full_res_pxl_sizes_zyx[1:]]
 
     # load ROI table
     ROI_table = ad.read_zarr(Path(zarr_url).joinpath("tables", "FOV_ROI_table"))
@@ -321,18 +371,28 @@ def measure_features(
         )
 
         # load label image
-        label_image_da = da.from_zarr(f"{zarr_url}/labels/{label_image_name}/{level}")[
+        label_image_da = da.from_zarr(f"{zarr_url}/labels/{label_name}/{level}")[
             region[1:]
         ]
 
         # load annotation images
-        annotation_images_da = []
-        if annotation_image_names:
-            for annotation_image_name in annotation_image_names:
-                annotation_images_da.append(
-                    da.from_zarr(f"{zarr_url}/labels/{annotation_image_name}/{level}")[
+        annotation_labels_da = []
+        if annotation_label_names:
+            for annotation_label_name in annotation_label_names:
+                annotation_labels_da.append(
+                    da.from_zarr(f"{zarr_url}/labels/{annotation_label_name}/{level}")[
                         region[1:]
                     ]
+                )
+
+        # load shortest distance images
+        shortest_distance_labels_da = []
+        if shortest_distance_label_names:
+            for shortest_distance_label_name in shortest_distance_label_names:
+                shortest_distance_labels_da.append(
+                    da.from_zarr(
+                        f"{zarr_url}/labels/{shortest_distance_label_name}/{level}"
+                    )[region[1:]]
                 )
 
         # load intensity images
@@ -374,12 +434,15 @@ def measure_features(
 
         measurement_delayed = dask.delayed(measure_features_ROI)(
             labels=label_image_da,
-            annotations_list=annotation_images_da,
+            annotations_list=annotation_labels_da,
             intensities_list=intensity_images_da,
-            ann_prefix_list=annotation_image_names,
+            shortest_distance_list=shortest_distance_labels_da,
+            ann_prefix_list=annotation_label_names,
             int_prefix_list=[channel.wavelength_id for channel in channels],
+            dist_prefix_list=shortest_distance_label_names,
             structure_props=structure_props,
             intensity_props=intensity_props,
+            pxl_sizes=level_pxl_sizes_zyx,
             optional_columns={
                 "plate": plate_name,
                 "well": well_name,
@@ -429,7 +492,7 @@ def measure_features(
         overwrite=overwrite,
         table_attrs={
             "type": "feature_table",
-            "region": {"path": f"../labels/{label_image_name}"},
+            "region": {"path": f"../labels/{label_name}"},
             "instance_key": "label",
         },
     )
