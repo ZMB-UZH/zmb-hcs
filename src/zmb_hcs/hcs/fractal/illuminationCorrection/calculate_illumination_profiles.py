@@ -119,6 +119,12 @@ def calculate_illumination_profiles(
                 image_loc_all.append((well, indices))
 
         # choose subset of all wells & FOVs
+        if len(image_loc_all) < n_images:
+            logger.warning(
+                f"{n_images=} but number of available images is {len(image_loc_all)}."
+                " using all available images instead."
+            )
+            n_images = len(image_loc_all)
         image_loc_sample = random.sample(image_loc_all, n_images)
 
         # cycle through all samples and load data
