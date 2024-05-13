@@ -1,6 +1,15 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+# read more about configuring hatch at:
+# https://hatch.pypa.io/latest/config/build/
+
+# https://hatch.pypa.io/latest/config/metadata/
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project]
 name = "zmb-hcs"
@@ -11,26 +20,60 @@ authors = [
 description = "A set of functions to process MD-ImageXpress data."
 license = "BSD-3-Clause"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "numpy",
-    "pandas",
+    "aicsimageio",
+    "aicssegmentation",
+    "basicpy",
     "dask",
-    "tifffile",
     "matplotlib",
     "m2stitch",
+    "numpy",
     "ome_types",
-    "zarr",
     "ome_zarr",
-    "aicsimageio",
+    "pandas",
+    "tifffile",
+    "zarr",
     "aicspylibczi>=3.1.1",
-    "fsspec>=2022.8.0"
+    "cellpose<3",
+    "fsspec>=2022.8.0",
+    "scipy<1.13",
+    #"fractal-tasks-core==0.14.2",
+    "fractal-tasks-core @ git+https://github.com/fstur/fractal-tasks-core.git@cellpose_normalization",
+    #"faim-ipa @ git+https://github.com/fmi-faim/faim-ipa.git@faim-ipa-0.3.0",
 ]
 
 [project.urls]
 "Homepage" = "not_available_yet"
+
+# https://peps.python.org/pep-0621/#dependencies-optional-dependencies
+# "extras" (e.g. for `pip install .[test]`)
+[project.optional-dependencies]
+# add dependencies used for testing here
+test = ["pytest", "pytest-cov"]
+# add anything else you like to have in your dev environment here
+dev = [
+    "mypy",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+
+# https://mypy.readthedocs.io/en/stable/config_file.html
+[tool.mypy]
+files = "src/**/"
+strict = false
+#disallow_any_generics = false
+#disallow_subclassing_any = false
+show_error_codes = true
+pretty = true
