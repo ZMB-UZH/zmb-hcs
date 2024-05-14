@@ -36,9 +36,10 @@ from fractal_tasks_core.roi import (
     convert_ROI_table_to_indices,
 )
 
-# XXX for basicpy, maybe add:
-import jax
-jax.config.update("jax_platform_name", "cpu")
+# For basicpy on windows:
+if os.name == 'nt':
+    import jax
+    jax.config.update("jax_platform_name", "cpu")
 
 
 logger = logging.getLogger(__name__)
