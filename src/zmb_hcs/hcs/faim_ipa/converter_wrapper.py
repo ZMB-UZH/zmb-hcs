@@ -123,6 +123,8 @@ def convert_MD_stack(
             "well": well_paths,
             "image": image_paths,
         }
+    
+    print("Done.")
 
     return metadata
 
