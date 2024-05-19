@@ -13,7 +13,7 @@ allow-direct-references = true
 
 [project]
 name = "zmb-hcs"
-version = "0.0.1"
+version = "0.1.0"
 authors = [
   { name="Flurin Sturzenegger", email="st.flurin@gmail.com" },
 ]
