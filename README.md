@@ -19,10 +19,10 @@ A collection of functions we use at [ZMB](https://www.zmb.uzh.ch/en.html) to han
 
 * It is recommended to install the package in a separate environment:
 ```
-conda create -n zmb_hcs python=3.9 -y
-conda activate zmb_hcs
+conda create -n zmb-hcs python=3.9 -y
+conda activate zmb-hcs
 ```
 * Install the package:
 ```
-pip install git+https://github.com/fstur/zmb_hcs
+pip install git+https://github.com/ZMB-UZH/zmb-hcs
 ```
