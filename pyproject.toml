@@ -46,9 +46,8 @@ dependencies = [
     "scipy<1.13",
     "jax>=0.3.10,<=0.4.23",
     "jaxlib>=0.3.10,<=0.4.23",
-    #"fractal-tasks-core==0.14.2",
-    "fractal-tasks-core @ git+https://github.com/fstur/fractal-tasks-core.git@cellpose_normalization",
-    #"faim-ipa @ git+https://github.com/fmi-faim/faim-ipa.git@faim-ipa-0.3.0",
+    "fractal-tasks-core==1.3.0",
+    #"faim-ipa",
 ]
 
 [project.urls]
