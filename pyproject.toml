@@ -30,7 +30,7 @@ dependencies = [
     "aicsimageio",
     "aicssegmentation",
     "basicpy",
-    "dask",
+    "dask<2024.7.0", # due to pandas dependency issues
     "matplotlib",
     "m2stitch",
     "numpy",
