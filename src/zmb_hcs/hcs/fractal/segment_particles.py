@@ -29,7 +29,7 @@ from fractal_tasks_core.roi import (
     load_region,
 )
 from fractal_tasks_core.tables import write_table
-from fractal_tasks_core.tasks.cellpose_transforms import (
+from fractal_tasks_core.tasks.cellpose_utils import (
     CellposeCustomNormalizer,
     normalized_img,
 )
@@ -98,12 +98,14 @@ def spot_mask_2D(
     if normalize.type == "default":
         x = normalized_img(
             np.reshape(x, (1,) + x.shape),
+            axis=0,
             lower_p=1.0,
             upper_p=99.0,
         )[0]
     elif normalize.type == "custom":
         x = normalized_img(
             np.reshape(x, (1,) + x.shape),
+            axis=0,
             lower_p=normalize.lower_percentile,
             upper_p=normalize.upper_percentile,
             lower_bound=normalize.lower_bound,
