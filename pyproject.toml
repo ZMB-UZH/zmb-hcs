@@ -46,7 +46,7 @@ dependencies = [
     #"scipy<1.13",
     #"jax>=0.3.10,<=0.4.23",
     #"jaxlib>=0.3.10,<=0.4.23",
-    "fractal-tasks-core==1.2",
+    "fractal-tasks-core==1.2.1",
 ]
 
 [project.urls]
