@@ -17,7 +17,8 @@ from fractal_tasks_core.channels import (
 from fractal_tasks_core.labels import prepare_label_group
 from fractal_tasks_core.masked_loading import masked_loading_wrapper
 from fractal_tasks_core.ngff import load_NgffImageMeta
-from fractal_tasks_core.pyramids import build_pyramid
+#from fractal_tasks_core.pyramids import build_pyramid
+from zmb_hcs.hcs.fractal.pyramids import build_pyramid
 from fractal_tasks_core.roi import (
     array_to_bounding_box_table,
     check_valid_ROI_indices,
