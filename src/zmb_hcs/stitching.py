@@ -42,6 +42,9 @@ def construct_grid(positions, tile_dimensions):
 def check_tile_configuration(dir_import):
     files, mode = parse_files_zmb(dir_import)
     print(f'Total number of files: {len(files)}')
+
+    # set projections from 'None' to 0
+    files.loc[files.z.isna(),'z'] = 0
     
     data_all_da, stage_positions_all_da, dx, dy = get_well_image_FCZYX(
         files,
