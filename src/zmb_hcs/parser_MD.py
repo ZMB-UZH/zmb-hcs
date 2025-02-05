@@ -153,7 +153,7 @@ def get_well_image_FCZYX(
     # create dask-array for images by mapping _read_image over fns_da
     images_da = fns_da.map_blocks(
         _read_image,
-        chunks=da.core.normalize_chunks( (1,)*len(fns_shape) + (x_dim,y_dim), fns_shape + (x_dim,y_dim) ),
+        chunks=da.core.normalize_chunks( (1,)*len(fns_shape) + (y_dim,x_dim), fns_shape + (y_dim,x_dim) ),
         new_axis=list(range(len(fns_shape),len(fns_shape)+2)),
         meta=np.asanyarray([]).astype(dtype)
     )
