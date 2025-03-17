@@ -27,26 +27,11 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "aicsimageio",
-    "aicssegmentation",
-    "basicpy",
-    "dask<2024.7.0", # due to pandas dependency issues
-    "matplotlib",
-    #"m2stitch",
+    "dask",
     "numpy",
-    "ome_types",
-    "ome_zarr",
     "pandas",
     "tifffile",
     "zarr",
-    "aicspylibczi>=3.1.1",
-    "cellpose<3",
-    "fsspec>=2022.8.0",
-    # basicpy requirements (needed for v1.1.0):
-    #"scipy<1.13",
-    #"jax>=0.3.10,<=0.4.23",
-    #"jaxlib>=0.3.10,<=0.4.23",
-    "fractal-tasks-core==1.2.1",
 ]
 
 [project.urls]
