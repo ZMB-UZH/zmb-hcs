@@ -20,24 +20,45 @@ def _save_mean_projection(files):
     images = np.stack(images)
     projection = np.mean(images, axis=0).astype(dtype=images.dtype)
 
-    # get metadata from already existing MIP tiff
-    # TODO: handle case if MIP is not present
-    assert len(files.query("z.isnull()")) == 1
-    file = files.query("z.isnull()").iloc[0]
-    old_path = file.path
-    new_path = file.new_path
-    im = Image.open(old_path)
-    tiffinfo = im.tag_v2
-    del tiffinfo[
-        TiffImagePlugin.ROWSPERSTRIP
-    ]  # somehow PIL has problems with this tag -> remove it
+    if len(files.query("z.isnull()")) == 1:
+        # get metadata from already existing MIP tiff
+        file = files.query("z.isnull()").iloc[0]
+        old_path = file.path
+        new_path = file.new_path
+        im = Image.open(old_path)
+        tiffinfo = im.tag_v2
+        del tiffinfo[
+            TiffImagePlugin.ROWSPERSTRIP
+        ]  # somehow PIL has problems with this tag -> remove it
 
-    # change image metadata
-    imageDescription = tiffinfo[TiffImagePlugin.IMAGEDESCRIPTION]
-    imageDescription = imageDescription.replace(
-        "Maximum", "Mean"
-    )  # TODO: do this in a better way
-    tiffinfo[TiffImagePlugin.IMAGEDESCRIPTION] = imageDescription
+        # change image metadata
+        imageDescription = tiffinfo[TiffImagePlugin.IMAGEDESCRIPTION]
+        imageDescription = imageDescription.replace(
+            "Maximum", "Mean"
+        )  # TODO: do this in a better way
+        tiffinfo[TiffImagePlugin.IMAGEDESCRIPTION] = imageDescription
+    elif len(files.query("z.isnull()")) == 0:
+        # get metadata from already existing plane tiff
+        file = files.query("z == '1'").iloc[0]
+        old_path = file.path
+        new_path = file.new_path
+        im = Image.open(old_path)
+        tiffinfo = im.tag_v2
+        del tiffinfo[
+            TiffImagePlugin.ROWSPERSTRIP
+        ]  # somehow PIL has problems with this tag -> remove it
+
+        # change image metadata
+        imageDescription = tiffinfo[TiffImagePlugin.IMAGEDESCRIPTION]
+        imageDescription = imageDescription.replace(
+            "<custom-prop id=\"Z Step\" type=\"float\" value=\"1\"/>",
+            "<custom-prop id=\"Z Projection Method\" type=\"string\" value=\"Maximum\"/>\n"
+            "<custom-prop id=\"Z Projection Step Size\" type=\"float\" value=\"0\"/>\n"
+            "<custom-prop id=\"Z Thickness\" type=\"float\" value=\"0\"/>"
+        )  # TODO: do this in a better way
+        tiffinfo[TiffImagePlugin.IMAGEDESCRIPTION] = imageDescription
+    else:
+        raise ValueError("Multiple MIPS found")
 
     # save projection with new metadata
     new_im = Image.fromarray(projection)
@@ -64,9 +85,6 @@ def create_mean_projection(
     If the output_path = input_path, the projections will be stored in ZStep_0.
     If the data-folder already contains a projection, it will be overwritten.
 
-    TODO: currently the input folder needs to already contain a maximum intensity
-    projection. -> should be generalized
-
     Args:
         input_path: Input folder of MD-ImageXpress data
         output_path: Path to the output folder
@@ -84,10 +102,17 @@ def create_mean_projection(
         files = files.query(query).copy()
 
     # define output paths
-    # TODO: handle case if MIP is not present
-    for index, row in files.query("z.isnull()").iterrows():
-        new_path = Path(output_path) / Path(row.path).relative_to(input_path)
-        files.loc[index, "new_path"] = str(new_path)
+    if len(files.query("z.isnull()")) > 0:
+        for index, row in files.query("z.isnull()").iterrows():
+            new_path = Path(output_path) / Path(row.path).relative_to(input_path)
+            files.loc[index, "new_path"] = str(new_path)
+    else:
+        for index, row in files.query("z == '1'").iterrows():
+            relpath = Path(row.path).relative_to(input_path)
+            parts = list(relpath.parts)
+            parts[-2] = "ZStep_0"
+            new_path = Path(output_path) / Path(*parts)
+            files.loc[index, "new_path"] = str(new_path)
 
     delayed_list = []
     for well in files.well.unique():
