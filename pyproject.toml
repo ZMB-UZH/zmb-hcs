@@ -32,7 +32,7 @@ dependencies = [
     "basicpy",
     "dask<2024.7.0", # due to pandas dependency issues
     "matplotlib",
-    "m2stitch",
+    #"m2stitch",
     "numpy",
     "ome_types",
     "ome_zarr",
