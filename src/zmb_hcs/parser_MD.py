@@ -30,23 +30,19 @@ def _list_dataset_files(
 
 # adapted from fractal-faim-hcs
 def parse_files_zmb(path: Union[Path, str], query: str=""):
-    """Parse files from a Molecular Devices ImageXpress dataset for ZMB setup."""
-    _METASERIES_FILENAME_PATTERN_ZMB_2D = (
-        r"(?P<name>.*)_(?P<well>[A-Z]+"
-        r"\d{2})_(?P<field>s\d+)*_*"
-        r"(?P<channel>w[1-9]{1})*"
-        r"(?!_thumb)(?P<md_id>.*)*"
-        r"(?P<ext>.tif|TIF)"
+    """Parse files from a Molecular Devices ImageXpress dataset."""
+    _METASERIES_FILENAME_PATTERN_2D = (
+         r"(?P<name>.*)_(?P<well>[A-Z]+\d{2})_?(?P<field>s\d+)?_?(?P<channel>w[1-9]{1})?(?!_thumb)(?P<md_id>[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})?(?P<ext>\.(?i:tif))"
     )
-    _METASERIES_ZMB_PATTERN = (
-        r".*[\/\\](?P<time_point>TimePoint_[0-9]*)(?:[\/\\]" r"ZStep_(?P<z>\d+))?.*"
+    _METASERIES_PATTERN = (
+        r".*(?:[\/\\](?P<date>\d{4}-\d{2}-\d{2}))?[\/\\](?:(?P<plate_name>.*)_Plate_)?(?P<acq_id>\d+)(?:[\/\\]TimePoint_(?P<t>\d+))?(?:[\/\\]ZStep_(?P<z>[0-9]\d*))?"
     )
-    root_pattern = _METASERIES_ZMB_PATTERN
+    root_pattern = _METASERIES_PATTERN
     files = pd.DataFrame(
         _list_dataset_files(
             root_dir=path,
             root_re=re.compile(root_pattern),
-            filename_re=re.compile(_METASERIES_FILENAME_PATTERN_ZMB_2D),
+            filename_re=re.compile(_METASERIES_FILENAME_PATTERN_2D),
         )
     )
 
