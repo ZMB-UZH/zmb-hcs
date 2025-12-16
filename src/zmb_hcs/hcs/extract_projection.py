@@ -135,6 +135,12 @@ def _copy_or_calculate_projection(files, projection_type):
             im.close()
             _calculate_and_save_projection(files, projection_type)
             return
+    elif len(files.query("z.isnull()")) == 0:
+        # calculate projection
+        _calculate_and_save_projection(files, projection_type)
+        return
+    else:
+        raise ValueError("Multiple MIPS found")
 
 def extract_projection(
     input_path: Union[str, Path],
