@@ -94,8 +94,21 @@ def _calculate_and_save_projection(files, projection_type):
     im.close()
     new_im.close()
 
-def _copy_or_calculate_projection(files, projection_type):
-    if len(files.query("z.isnull()")) == 1:
+def _copy_or_calculate_projection(files, projection_type, slice_index):
+    if projection_type == "slice":
+        if slice_index is None:
+            num_slices = len(files.query("z.notnull()"))
+            slice_index = num_slices // 2
+        # copy existing slice
+        file = files[files.z == str(slice_index)].iloc[0]
+        old_path = file.path
+        new_path = file.new_path
+        Path(new_path).parent.mkdir(parents=True, exist_ok=True)
+        im = Image.open(old_path)
+        im.save(new_path)
+        im.close()
+        return
+    elif len(files.query("z.isnull()")) == 1:
         file = files.query("z.isnull()").iloc[0]
         old_path = file.path
         im = Image.open(old_path)
@@ -146,6 +159,7 @@ def extract_projection(
     input_path: Union[str, Path],
     output_path: Union[str, Path],
     projection_type: str = "mean",
+    slice_index: int = None,
     query: str = None,
 ) -> None:
     """
@@ -162,6 +176,8 @@ def extract_projection(
         input_path: Input folder of MD-ImageXpress data
         output_path: Path to the output folder
         projection_type: Type of projection to calculate ('mean' or 'max')
+        slice_index: If projection_type is 'slice', index of the slice to extract.
+            If None, the middle slice will be extracted.
         query: Pandas-query to filter input files
 
     Returns:
@@ -176,17 +192,15 @@ def extract_projection(
         files = files.query(query).copy()
 
     # define output paths
-    if len(files.query("z.isnull()")) > 0:
-        for index, row in files.query("z.isnull()").iterrows():
-            new_path = Path(output_path) / Path(row.path).relative_to(input_path)
-            files.loc[index, "new_path"] = str(new_path)
-    else:
-        for index, row in files.query("z == '1'").iterrows():
-            relpath = Path(row.path).relative_to(input_path)
-            parts = list(relpath.parts)
-            parts[-2] = "ZStep_0"
-            new_path = Path(output_path) / Path(*parts)
-            files.loc[index, "new_path"] = str(new_path)
+    for index, row in files.query("z.isnull()").iterrows():
+        new_path = Path(output_path) / Path(row.path).relative_to(input_path)
+        files.loc[index, "new_path"] = str(new_path)
+    for index, row in files.query("z.notnull()").iterrows():
+        relpath = Path(row.path).relative_to(input_path)
+        parts = list(relpath.parts)
+        parts[-2] = "ZStep_0"
+        new_path = Path(output_path) / Path(*parts)
+        files.loc[index, "new_path"] = str(new_path)
 
     delayed_list = []
     for well in files.well.unique():
@@ -195,7 +209,7 @@ def extract_projection(
             field_files = well_files.query("field==@field")
             for channel in field_files.channel.unique():
                 channel_files = field_files.query("channel==@channel")
-                delayed_list.append(dask.delayed(_copy_or_calculate_projection)(channel_files, projection_type))
+                delayed_list.append(dask.delayed(_copy_or_calculate_projection)(channel_files, projection_type, slice_index))
 
     logger.info(f"Calculating and saving {len(delayed_list)} projections...")
     chunk_len = 20000
