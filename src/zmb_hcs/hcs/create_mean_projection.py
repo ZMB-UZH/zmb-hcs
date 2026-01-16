@@ -1,3 +1,6 @@
+# This file & functions are redundant with extract_projection.py
+# but kept for backward compatibility
+
 import logging
 from pathlib import Path
 from typing import Union
@@ -93,6 +96,10 @@ def create_mean_projection(
     Returns:
         None
     """
+    print(
+        "Warning: 'create_mean_projection' is deprecated."
+        "Please use 'extract_projection' with projection_type='mean' instead."
+    )
 
     logger.info("Start 'create_mean_projection'")
 
