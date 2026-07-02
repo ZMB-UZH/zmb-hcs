@@ -32,6 +32,7 @@ dependencies = [
     "pandas",
     "tifffile",
     "zarr",
+    "zmb-md-converter",
 ]
 
 [project.urls]
